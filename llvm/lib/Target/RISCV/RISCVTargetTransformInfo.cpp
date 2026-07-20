@@ -2957,3 +2957,22 @@ RISCVTTIImpl::enableMemCmpExpansion(bool OptSize, bool IsZeroCmp) const {
   }
   return Options;
 }
+
+bool RISCVTTIImpl::isHardwareLoopProfitable(
+    Loop *L, ScalarEvolution &SE, AssumptionCache &AC,
+    TargetLibraryInfo *LibInfo, HardwareLoopInfo &HWLoopInfo) const {
+  if (!ST->hasVendorXNonSpec()) {
+    // dbgs() << "No Non-Spec Vender Feature!\n";
+    return false;
+  }
+  if (!SE.hasLoopInvariantBackedgeTakenCount(L)) {
+    // dbgs() << "hasLoopInvariantBackedgeTakenCount not true!\n";
+    return false;
+  }
+  dbgs() << "isHardwareLoopProfitable => true\n";
+  LLVMContext& Ctx = L->getHeader()->getContext();
+  HWLoopInfo.CounterInReg = true;
+  HWLoopInfo.CountType = Type::getIntNTy(Ctx, ST->getXLen());
+  HWLoopInfo.LoopDecrement = ConstantInt::get(HWLoopInfo.CountType, 1);
+  return true;
+}

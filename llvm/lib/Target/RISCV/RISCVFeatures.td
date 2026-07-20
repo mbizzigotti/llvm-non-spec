@@ -1642,6 +1642,12 @@ def HasVendorXAndesVDot
       AssemblerPredicate<(all_of FeatureVendorXAndesVDot),
                          "'XAndesVDot' (Andes Vector Dot Product Extension)">;
 
+def FeatureVendorXNonSpec
+    : RISCVExtension<1, 0, "Non-Speculation Branches Extension">;
+def HasVendorXNonSpec : Predicate<"Subtarget->hasVendorXNonSpec()">,
+      AssemblerPredicate<(all_of FeatureVendorXNonSpec),
+                         "'XNonSpec' (Non-Speculation Branches Extension)">;
+
 //===----------------------------------------------------------------------===//
 // LLVM specific features and extensions
 //===----------------------------------------------------------------------===//

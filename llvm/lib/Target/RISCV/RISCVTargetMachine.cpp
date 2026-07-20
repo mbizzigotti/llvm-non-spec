@@ -484,6 +484,10 @@ void RISCVPassConfig::addIRPasses() {
     addPass(createRISCVGatherScatterLoweringPass());
     addPass(createInterleavedAccessPass());
     addPass(createRISCVCodeGenPreparePass());
+
+    // TODO(mbizzigotti): Is this the right place for this?
+    addPass(createHardwareLoopsLegacyPass());
+    dbgs() << "RISCV: Enabled Hardware Loop Pass\n";
   }
 
   TargetPassConfig::addIRPasses();

@@ -1789,6 +1789,19 @@ def PseudoLongBGE : LongBccPseudo;
 def PseudoLongBLTU : LongBccPseudo;
 def PseudoLongBGEU : LongBccPseudo;
 
+// let Predicates = [IsRV64] in {
+// let hasSideEffects = 1, mayLoad = 1, mayStore = 1, isCodeGenOnly = 1 in {
+// def PseudoSTARTLOOPITER : Pseudo<(outs GPR:$dst), (ins GPR:$n), []>;
+// }
+// def : Pat<(int_start_loop_iterations GPR:$n), (PseudoSTARTLOOPITER (XLenVT GPR:$n))>;
+// }
+// let hasSideEffects = 1, mayLoad = 0, mayStore = 0, isCodeGenOnly = 1 in
+// def PseudoSTARTLOOPITER : Pseudo<(outs GPR:$dst), (ins GPR:$n), []>;
+// def : Pat<(XLenVT (int_start_loop_iterations GPR:$n)), (PseudoSTARTLOOPITER GPR:$n)>;
+
+/* def PseudoLOOPDECREG    : Pseudo<(outs GPR:$dst), (ins GPR:$src), []>; */
+/* def : Pat<(XLenVT (int_loop_decrement_reg GPR:$n, simm12:$k)), (PseudoLOOPDECREG GPR:$n)>; */
+
 /*
     PB   Unconditional -> PBU
     PB   Conditional   -> PBC

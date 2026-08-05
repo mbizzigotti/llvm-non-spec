@@ -18,6 +18,11 @@ using namespace llvm;
 #define RISCV_BRANCH_SETUP_HOISTING_PASS_NAME                                  \
   "RISC-V branch setup hoisting pass"
 
+static cl::opt<bool> DisableBranchSetupHoisting(
+    "disable-branch-setup-hoisting", cl::Hidden,
+    cl::desc("Disable " RISCV_BRANCH_SETUP_HOISTING_PASS_NAME),
+    cl::init(true));
+
 namespace {
 
 class RISCVBranchSetupHoisting : public MachineFunctionPass {
@@ -54,6 +59,9 @@ public:
 char RISCVBranchSetupHoisting::ID = 0;
 
 bool RISCVBranchSetupHoisting::runOnMachineFunction(MachineFunction &MF) {
+  if (DisableBranchSetupHoisting)
+    return false;
+
   TII = MF.getSubtarget().getInstrInfo();
   TRI = MF.getSubtarget().getRegisterInfo();
   BSI = &getAnalysis<RISCVBranchSetupAnalysisWrapper>().getInfo();

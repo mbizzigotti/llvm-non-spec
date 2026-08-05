@@ -482,6 +482,8 @@ void RISCVPassConfig::addIRPasses() {
     addPass(createRISCVCodeGenPreparePass());
   }
 
+  addPass(createHardwareLoopsLegacyPass());
+
   TargetPassConfig::addIRPasses();
 }
 

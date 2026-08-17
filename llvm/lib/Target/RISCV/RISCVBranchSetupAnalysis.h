@@ -24,6 +24,7 @@
 #define LLVM_LIB_TARGET_RISCV_RISCVBRANCHSETUPANALYSIS_H
 
 #include "llvm/CodeGen/MachineFunctionPass.h"
+#include "llvm/CodeGen/MachineDominators.h"
 
 namespace llvm {
 
@@ -77,6 +78,7 @@ public:
   bool runOnMachineFunction(MachineFunction &MF) override;
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
+    AU.addRequired<MachineDominatorTreeWrapperPass>();
     AU.setPreservesAll();
     MachineFunctionPass::getAnalysisUsage(AU);
   }

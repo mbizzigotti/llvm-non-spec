@@ -347,7 +347,8 @@ bool RISCVExpandPseudo::expandMV_FPR16INX(MachineBasicBlock &MBB,
 
 bool RISCVExpandPseudo::expandBranch(MachineBasicBlock &MBB,
                                      MachineBasicBlock::iterator MBBI) {
-  Register BReg = RISCV::B0; // TODO: use virtual registers
+  MachineRegisterInfo &MRI = MBB.getParent()->getRegInfo();
+  Register BReg = MRI.createVirtualRegister(&RISCV::PBRRegClass);
   MachineBasicBlock *TBB = MBBI->getOperand(0).getMBB();
   DebugLoc DL = MBBI->getDebugLoc();
   MCContext &Context = MBB.getParent()->getContext();
@@ -373,8 +374,9 @@ bool RISCVExpandPseudo::expandBranch(MachineBasicBlock &MBB,
 }
 
 bool RISCVExpandPseudo::expandCondBranch(MachineBasicBlock &MBB,
-                                         MachineBasicBlock::iterator MBBI) {
-  Register BReg = RISCV::B0; // TODO: use virtual registers
+MachineBasicBlock::iterator MBBI) {
+  MachineRegisterInfo &MRI = MBB.getParent()->getRegInfo();
+  Register BReg = MRI.createVirtualRegister(&RISCV::PBRRegClass);
   Register Rs1 = MBBI->getOperand(0).getReg();
   Register Rs2 = MBBI->getOperand(1).getReg();
   MachineBasicBlock *TBB = MBBI->getOperand(2).getMBB();
@@ -470,7 +472,8 @@ bool RISCVExpandPseudo::expandCall(MachineBasicBlock &MBB,
   }
 
   DebugLoc DL = MBBI->getDebugLoc();
-  Register BReg = RISCV::B0; // TODO: use virtual registers
+  MachineRegisterInfo &MRI = MBB.getParent()->getRegInfo();
+  Register BReg = MRI.createVirtualRegister(&RISCV::PBRRegClass);
 
   // Emit BMOVS B0, Label
   BuildMI(MBB, MBBI, DL, TII->get(RISCV::BMOVS_J))
@@ -504,8 +507,9 @@ bool RISCVExpandPseudo::expandCall(MachineBasicBlock &MBB,
 }
 
 bool RISCVExpandPseudo::expandReturn(MachineBasicBlock &MBB,
-                                     MachineBasicBlock::iterator MBBI) {
-  Register BReg = RISCV::B0; // TODO: use virtual registers
+MachineBasicBlock::iterator MBBI) {
+  MachineRegisterInfo &MRI = MBB.getParent()->getRegInfo();
+  Register BReg = MRI.createVirtualRegister(&RISCV::PBRRegClass);
   DebugLoc DL = MBBI->getDebugLoc();
   MCContext &Context = MBB.getParent()->getContext();
   MCSymbol* Sym = Context.createTempSymbol("ns_return_");
@@ -533,7 +537,8 @@ bool RISCVExpandPseudo::expandReturn(MachineBasicBlock &MBB,
 bool RISCVExpandPseudo::expandIndirect(MachineBasicBlock &MBB,
                                        MachineBasicBlock::iterator MBBI,
                                        MCRegister Ra) const {
-  Register BReg = RISCV::B0;
+  MachineRegisterInfo &MRI = MBB.getParent()->getRegInfo();
+  Register BReg = MRI.createVirtualRegister(&RISCV::PBRRegClass);
   DebugLoc DL = MBBI->getDebugLoc();
   MCRegister Rs1 = MBBI->getOperand(0).getReg();
   MCContext &Context = MBB.getParent()->getContext();
@@ -558,6 +563,16 @@ bool RISCVExpandPseudo::expandIndirect(MachineBasicBlock &MBB,
   MBBI->eraseFromParent();
   return true;
 }
+
+//bool RISCVExpandPseudo::expandLoopSetup(MachineBasicBlock &MBB,
+//  MachineBasicBlock::iterator MBBI) {
+//  return true;
+//}
+//
+//bool RISCVExpandPseudo::expandLoopEnd(MachineBasicBlock &MBB,
+//  MachineBasicBlock::iterator MBBI) {
+//  return true;
+//}
 
 bool RISCVExpandPseudo::expandMV_FPR32INX(MachineBasicBlock &MBB,
                                           MachineBasicBlock::iterator MBBI) {

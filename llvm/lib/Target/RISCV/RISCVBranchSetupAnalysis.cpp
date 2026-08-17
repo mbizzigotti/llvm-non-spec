@@ -53,47 +53,67 @@ void RISCVBranchSetup::print(raw_ostream &OS) const {
   if (C) { OS << "*" << *C << "\n"; }
 }
 
-static RISCVBranchSetup FindBranchSetup(const MachineInstr &PBMI) {
+static RISCVBranchSetup
+FindBranchSetup(const MachineInstr &PBMI,
+                const MachineDominatorTree &MDT) {
   RISCVBranchSetup Setup = {};
   const MachineBasicBlock *MBB = PBMI.getParent();
   Register BR = PBMI.getOperand(0).getReg();
 
-  auto It = PBMI.getIterator();
-  while (It != MBB->begin()) {
-    --It;
-    const MachineInstr &I = *It;
+  auto ScanBlock = [&](const MachineBasicBlock &Block,
+          MachineBasicBlock::const_iterator It) {
+        while (It != Block.begin()) {
+          --It;
+          const MachineInstr &I = *It;
 
-    if (!I.isBMOV())
-      continue;
+          if (!I.isBMOV())
+            continue;
 
-    switch (I.getOpcode()) {
-    case RISCV::BMOVS_I:
-    case RISCV::BMOVS_J:
-      if (!Setup.S && I.getOperand(0).getReg() == BR) {
-        Setup.S = &I;
-      }
-      break;
-    case RISCV::BMOVT_I:
-    case RISCV::BMOVT_J:
-      if (!Setup.T && I.getOperand(0).getReg() == BR) {
-        Setup.T = &I;
-      }
-      break;
-    case RISCV::BMOVC_BEQ:
-    case RISCV::BMOVC_BNE:
-    case RISCV::BMOVC_BLT:
-    case RISCV::BMOVC_BLTU:
-    case RISCV::BMOVC_BGE:
-    case RISCV::BMOVC_BGEU:
-    case RISCV::BMOVC_BITS:
-    case RISCV::BMOVC_LOOP:
-      if (!Setup.C && I.getOperand(0).getReg() == BR) {
-        Setup.C = &I;
-      }
-      break;
-    }
+          switch (I.getOpcode()) {
+          case RISCV::BMOVS_I:
+          case RISCV::BMOVS_J:
+            if (!Setup.S && I.getOperand(0).getReg() == BR)
+              Setup.S = &I;
+            break;
 
-    if (Setup.S && Setup.T)
+          case RISCV::BMOVT_I:
+          case RISCV::BMOVT_J:
+            if (!Setup.T && I.getOperand(0).getReg() == BR)
+              Setup.T = &I;
+            break;
+
+          case RISCV::BMOVC_BEQ:
+          case RISCV::BMOVC_BNE:
+          case RISCV::BMOVC_BLT:
+          case RISCV::BMOVC_BLTU:
+          case RISCV::BMOVC_BGE:
+          case RISCV::BMOVC_BGEU:
+          case RISCV::BMOVC_BITS:
+          case RISCV::BMOVC_LOOP:
+            if (!Setup.C && I.getOperand(0).getReg() == BR)
+              Setup.C = &I;
+            break;
+          }
+
+          if (Setup.S && Setup.T)
+            return true;
+        }
+
+        return false;
+  };
+
+  // Search only instructions preceding PBMI in its own block. This also
+  // preserves the old behavior if MBB is unreachable and absent from MDT.
+  if (ScanBlock(*MBB, PBMI.getIterator()))
+    return Setup;
+
+  // Every block that dominates MBB lies on its immediate-dominator chain.
+  auto *DomNode = MDT.getNode(MBB);
+  while (DomNode && DomNode->getIDom()) {
+    DomNode = DomNode->getIDom();
+    const MachineBasicBlock *DomMBB = DomNode->getBlock();
+
+    if (ScanBlock(*DomMBB, DomMBB->end()))
       break;
   }
 
@@ -102,7 +122,8 @@ static RISCVBranchSetup FindBranchSetup(const MachineInstr &PBMI) {
 
 /// Core, PM-agnostic traversal shared by the legacy wrapper pass and the
 /// new-PM analysis below.
-static RISCVBranchSetupInfo computeRISCVBranchSetupInfo(const MachineFunction &MF) {
+static RISCVBranchSetupInfo computeRISCVBranchSetupInfo(
+  const MachineFunction &MF, const MachineDominatorTree &MDT) {
   RISCVBranchSetupInfo Info;
   //const TargetSubtargetInfo &STI = MF.getSubtarget();
   //const TargetInstrInfo *TII = STI.getInstrInfo();
@@ -135,7 +156,7 @@ static RISCVBranchSetupInfo computeRISCVBranchSetupInfo(const MachineFunction &M
       case RISCV::PseudoPBC:
       case RISCV::PseudoPBI: {
         Info.NumPB += 1;
-        RISCVBranchSetup Setup = FindBranchSetup(MI);
+        RISCVBranchSetup Setup = FindBranchSetup(MI, MDT);
         auto [_, Inserted] = Info.Branches.try_emplace(&MI, Setup);
         assert(Inserted);
         break;
@@ -181,7 +202,9 @@ RISCVBranchSetupAnalysisWrapper::RISCVBranchSetupAnalysisWrapper()
 
 bool RISCVBranchSetupAnalysisWrapper::runOnMachineFunction(
     MachineFunction &MF) {
-  Info = computeRISCVBranchSetupInfo(MF);
+  const auto &MDT =
+    getAnalysis<MachineDominatorTreeWrapperPass>().getDomTree();
+  Info = computeRISCVBranchSetupInfo(MF, MDT);
   if (PrintRISCVBranchSetupAnalysis)
     Info.print(errs(), MF);
   // This is a pure analysis: it never changes the MachineFunction.
@@ -208,8 +231,11 @@ AnalysisKey RISCVBranchSetupAnalysis::Key;
 
 RISCVBranchSetupAnalysis::Result
 RISCVBranchSetupAnalysis::run(MachineFunction &MF,
-                          MachineFunctionAnalysisManager &) {
-  RISCVBranchSetupInfo Info = computeRISCVBranchSetupInfo(MF);
+MachineFunctionAnalysisManager &MFM) {
+  const auto &MDT = MFM.getResult<MachineDominatorTreeAnalysis>(MF);
+  //const auto &MDT =
+  //  getAnalysis<MachineDominatorTreeWrapperPass>().getDomTree();
+  RISCVBranchSetupInfo Info = computeRISCVBranchSetupInfo(MF, MDT);
   if (PrintRISCVBranchSetupAnalysis)
     Info.print(errs(), MF);
   return Info;

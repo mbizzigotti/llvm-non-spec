@@ -341,7 +341,7 @@ static bool onlyAllocateRVVReg(const TargetRegisterInfo &TRI,
                                const MachineRegisterInfo &MRI,
                                const Register Reg) {
   const TargetRegisterClass *RC = MRI.getRegClass(Reg);
-  return RISCVRegisterInfo::isRVVRegClass(RC);
+  return RISCVRegisterInfo::isRVVRegClass(RC) && RC != &RISCV::PBRRegClass;
 }
 
 static FunctionPass *useDefaultRegisterAllocator() { return nullptr; }
@@ -597,7 +597,7 @@ void RISCVPassConfig::addPreEmitPass2() {
   // progress in the LR/SC block.
   addPass(createRISCVExpandAtomicPseudoPass());
 
-  // addPass(createRISCVExpandBranchPseudoPass());
+  addPass(createRISCVExpandLoopPseudoPass());
 
   // KCFI indirect call checks are lowered to a bundle.
   addPass(createUnpackMachineBundles([&](const MachineFunction &MF) {
@@ -605,6 +605,8 @@ void RISCVPassConfig::addPreEmitPass2() {
   }));
 
   addPass(createRISCVBranchSetupHoistingPass());
+  addPass(createGreedyRegisterAllocator());
+  addPass(createVirtRegRewriter(false));
 }
 
 void RISCVPassConfig::addMachineSSAOptimization() {

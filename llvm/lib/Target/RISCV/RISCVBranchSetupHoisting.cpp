@@ -15,12 +15,12 @@
 
 using namespace llvm;
 
-#define RISCV_BRANCH_SETUP_HOISTING_PASS_NAME                                  \
-  "RISC-V branch setup hoisting pass"
+#define DEBUG_TYPE "riscv-branch-setup-hoisting"
+#define PASS_NAME "RISC-V branch setup hoisting pass"
 
 static cl::opt<bool> DisableBranchSetupHoisting(
     "disable-branch-setup-hoisting", cl::Hidden,
-    cl::desc("Disable " RISCV_BRANCH_SETUP_HOISTING_PASS_NAME),
+    cl::desc("Disable " PASS_NAME),
     cl::init(true));
 
 namespace {
@@ -47,7 +47,7 @@ public:
   }
 
   StringRef getPassName() const override {
-    return RISCV_BRANCH_SETUP_HOISTING_PASS_NAME;
+    return PASS_NAME;
   }
 
   bool scheduleBranchSetup(MachineInstr &MI, MachineInstr *S, MachineInstr *T,
@@ -103,7 +103,7 @@ bool RISCVBranchSetupHoisting::scheduleBranchSetup(MachineInstr &MI,
   assert(T && "Branch must have BMOVT");
   bool Changed = false;
 
-  dbgs() << "Setup for:"; MI.dump();
+  LLVM_DEBUG(dbgs() << "Setup for:"; MI.dump());
 
   InsertPt = findEarliestSafePoint(S, MI);
   if (InsertPt != S->getIterator()) {
@@ -135,6 +135,7 @@ static bool redefinesSourceRegs(const MachineInstr &MI,
   return false;
 }
 
+#if 0
 static bool isClobberedByCall(const MachineInstr &CallMI,
                               const MachineInstr &SetupMI) {
   for (const MachineOperand &MO : CallMI.operands()) {
@@ -148,16 +149,17 @@ static bool isClobberedByCall(const MachineInstr &CallMI,
   }
   return false;
 }
+#endif
 
 MachineBasicBlock::iterator RISCVBranchSetupHoisting::findEarliestSafePoint(
   MachineInstr *SetupMI, MachineInstr &BranchMI) {
   MachineBasicBlock *CurBB = SetupMI->getParent();
   MachineBasicBlock::iterator SafePoint = SetupMI->getIterator();
 
-  SetupMI->dump();
+  LLVM_DEBUG(SetupMI->dump());
 
   // Track physical register uses/defs in SetupMI (e.g., b0, x1, x2)
-  Register DestReg = SetupMI->getOperand(0).getReg(); // b0
+  //Register DestReg = SetupMI->getOperand(0).getReg(); // b0
 
   // Walk backwards through instructions to find dependencies/hazards
   for (MachineBasicBlock::reverse_iterator I = std::next(SetupMI->getReverseIterator()), E = CurBB->rend(); I != E; ++I) {
@@ -165,13 +167,13 @@ MachineBasicBlock::iterator RISCVBranchSetupHoisting::findEarliestSafePoint(
 
     // HAZARD 1: Does CurrMI redefine any source registers used by SetupMI?
     if (redefinesSourceRegs(CurrMI, *SetupMI, TRI)) {
-      dbgs() << "Source hazard with:"; CurrMI.dump();
+      LLVM_DEBUG(dbgs() << "Source hazard with:"; CurrMI.dump());
       break;
     }
 
     // HAZARD 2: Is CurrMI a CALL that clobbers DestReg or SetupMI's sources?
     if (CurrMI.isCall()) {
-      dbgs() << "Call hazard with:"; CurrMI.dump();
+      LLVM_DEBUG(dbgs() << "Call hazard with:"; CurrMI.dump());
       // if (isClobberedByCall(CurrMI, *SetupMI, TRI))
       break; // Call boundary reached, stop hoisting across this call
     }
@@ -186,7 +188,7 @@ MachineBasicBlock::iterator RISCVBranchSetupHoisting::findEarliestSafePoint(
 }
 
 INITIALIZE_PASS(RISCVBranchSetupHoisting, "riscv-branch-setup-hoisting",
-                RISCV_BRANCH_SETUP_HOISTING_PASS_NAME,
+                PASS_NAME,
                 false, // is CFG only?
                 false  // is analysis?
 )

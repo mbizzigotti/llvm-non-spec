@@ -2962,11 +2962,10 @@ RISCVTTIImpl::enableMemCmpExpansion(bool OptSize, bool IsZeroCmp) const {
 bool RISCVTTIImpl::isHardwareLoopProfitable(
     Loop *L, ScalarEvolution &SE, AssumptionCache &AC,
     TargetLibraryInfo *LibInfo, HardwareLoopInfo &HWLoopInfo) const {
-  if (!SE.hasLoopInvariantBackedgeTakenCount(L)) {
-    return false;
-  }
   LLVMContext& Ctx = SE.getContext();
-  HWLoopInfo.CounterInReg = true;
+  HWLoopInfo.CounterInReg = false;
+  HWLoopInfo.IsNestingLegal = false;
+  HWLoopInfo.PerformEntryTest = false;
   HWLoopInfo.CountType = Type::getIntNTy(Ctx, ST->getXLen());
   HWLoopInfo.LoopDecrement = ConstantInt::get(HWLoopInfo.CountType, 1);
   return true;

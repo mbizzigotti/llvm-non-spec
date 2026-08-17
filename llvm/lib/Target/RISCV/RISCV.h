@@ -120,6 +120,9 @@ void initializeRISCVVMV0EliminationPass(PassRegistry &);
 FunctionPass* createRISCVBranchSetupHoistingPass();
 void initializeRISCVBranchSetupHoistingPass(PassRegistry &);
 
+FunctionPass* createRISCVExpandLoopPseudoPass();
+void initializeRISCVExpandLoopPseudoPass(PassRegistry &);
+
 FunctionPass *createRISCVBranchSetupAnalysisPass();
 void initializeRISCVBranchSetupAnalysisWrapperPass(PassRegistry &);
 
